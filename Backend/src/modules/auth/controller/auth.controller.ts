@@ -306,6 +306,13 @@ export class AuthController {
         sameSite: CookieOptions['sameSite'];
         secure: boolean;
     } {
+        if (config.NODE_ENV === 'production') {
+            return {
+                sameSite: 'none',
+                secure: true,
+            };
+        }
+
         const frontendHost = this.getHost(config.FRONTEND_URL);
         const backendHost = this.getRequestHost(request);
         const isCrossSite =
