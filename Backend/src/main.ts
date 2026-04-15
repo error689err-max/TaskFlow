@@ -10,9 +10,18 @@ import config from './config/env.config';
 async function bootstrap() {
     const logger = new Logger('Bootstrap');
     const app = await NestFactory.create(AppModule);
+
+    const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        config.FRONTEND_URL,
+    ].filter(Boolean);
+
     app.enableCors({
-        origin: config.FRONTEND_URL,
+        origin: allowedOrigins,
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
     });
     app.use(cookieParser());
     app.useGlobalPipes(
