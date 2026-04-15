@@ -79,19 +79,17 @@ export class AuthController {
         @Req() request: AuthRequest,
         @Res({ passthrough: true }) response: Response,
     ) {
-        const cookieSecurity = this.getCookieSecurity(request as Request);
+        const cookieOptions = this.getAuthCookieOptions(request as Request);
         await this.authService.revokeRefreshToken(request.user.id);
         response.clearCookie('access_token', {
             httpOnly: true,
-            sameSite: cookieSecurity.sameSite,
-            secure: cookieSecurity.secure,
             path: '/',
+            ...cookieOptions,
         });
         response.clearCookie('refresh_token', {
             httpOnly: true,
-            sameSite: cookieSecurity.sameSite,
-            secure: cookieSecurity.secure,
             path: '/',
+            ...cookieOptions,
         });
         return {
             success: true,
@@ -220,15 +218,13 @@ export class AuthController {
     @UseGuards(ProviderGuard)
     async oauthStart(
         @Param('provider') provider: string,
-        @Req() request: Request,
         @Res() response: Response,
     ) {
         const oauthState = randomBytes(32).toString('hex');
-        const cookieSecurity = this.getCookieSecurity(request);
         response.cookie('oauth_state', oauthState, {
             httpOnly: true,
-            sameSite: cookieSecurity.sameSite,
-            secure: cookieSecurity.secure,
+            sameSite: 'lax',
+            secure: config.NODE_ENV === 'production',
             path: '/',
             maxAge: 10 * 60 * 1000,
         });
@@ -263,11 +259,10 @@ export class AuthController {
             provider,
             request,
         );
-        const cookieSecurity = this.getCookieSecurity(request);
         response.clearCookie('oauth_state', {
             httpOnly: true,
-            sameSite: cookieSecurity.sameSite,
-            secure: cookieSecurity.secure,
+            sameSite: 'lax',
+            secure: config.NODE_ENV === 'production',
             path: '/',
         });
         this.setAuthCookies(
@@ -285,34 +280,24 @@ export class AuthController {
         refreshToken: string,
         request?: Request,
     ): void {
-        const cookieSecurity = this.getCookieSecurity(request);
+        const cookieOptions = this.getAuthCookieOptions(request);
         response.cookie('access_token', accessToken, {
             httpOnly: true,
-            sameSite: cookieSecurity.sameSite,
-            secure: cookieSecurity.secure,
             path: '/',
             maxAge: this.parseDurationToMs(config.ACCESS_TOKEN_EXPIRES_IN),
+            ...cookieOptions,
         });
         response.cookie('refresh_token', refreshToken, {
             httpOnly: true,
-            sameSite: cookieSecurity.sameSite,
-            secure: cookieSecurity.secure,
             path: '/',
             maxAge: this.parseDurationToMs(config.REFRESH_TOKEN_EXPIRES_IN),
+            ...cookieOptions,
         });
     }
 
-    private getCookieSecurity(request?: Request): {
-        sameSite: CookieOptions['sameSite'];
-        secure: boolean;
-    } {
-        if (config.NODE_ENV === 'production') {
-            return {
-                sameSite: 'none',
-                secure: true,
-            };
-        }
-
+    private getAuthCookieOptions(
+        request?: Request,
+    ): Pick<CookieOptions, 'sameSite' | 'secure'> {
         const frontendHost = this.getHost(config.FRONTEND_URL);
         const backendHost = this.getRequestHost(request);
         const isCrossSite =
@@ -360,7 +345,6 @@ export class AuthController {
             ? hostHeader
             : null;
     }
-
     private parseDurationToMs(duration: string): number {
         const normalized = duration.trim();
         const match = normalized.match(/^(\d+)([smhd])$/i);
