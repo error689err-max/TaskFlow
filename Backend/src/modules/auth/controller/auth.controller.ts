@@ -16,7 +16,7 @@ import {
     UseInterceptors,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import type { CookieOptions, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { JwtCookieAuthGuard, type AuthRequest } from '../../../common/guards';
 import { AvatarUploadInterceptor } from '../../../common/interceptors';
 import { avatarFileValidationPipe } from '../../../common/pipes';
@@ -38,15 +38,27 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly authBusinessValidator: AuthBusinessValidator,
     ) {}
+
+    private getCookieOptions(maxAge?: number) {
+        const isProd = config.NODE_ENV === 'production';
+
+        return {
+            httpOnly: true,
+            sameSite: isProd ? ('none' as const) : ('lax' as const),
+            secure: isProd,
+            path: '/',
+            ...(maxAge ? { maxAge } : {}),
+        };
+    }
+
     @Post('register')
     async register(
         @Body() dto: RegisterDto,
-        @Req() request: Request,
         @Res({ passthrough: true }) response: Response,
     ) {
         const { user, accessToken, refreshToken } =
             await this.authService.register(dto);
-        this.setAuthCookies(response, accessToken, refreshToken, request);
+        this.setAuthCookies(response, accessToken, refreshToken);
 
         return {
             success: true,
@@ -59,12 +71,11 @@ export class AuthController {
     @Post('login')
     async login(
         @Body() dto: LoginDto,
-        @Req() request: Request,
         @Res({ passthrough: true }) response: Response,
     ) {
         const { user, accessToken, refreshToken } =
             await this.authService.login(dto);
-        this.setAuthCookies(response, accessToken, refreshToken, request);
+        this.setAuthCookies(response, accessToken, refreshToken);
         return {
             success: true,
             message: AUTH_MESSAGES.success.loginSuccessful,
@@ -79,18 +90,9 @@ export class AuthController {
         @Req() request: AuthRequest,
         @Res({ passthrough: true }) response: Response,
     ) {
-        const cookieOptions = this.getAuthCookieOptions(request as Request);
         await this.authService.revokeRefreshToken(request.user.id);
-        response.clearCookie('access_token', {
-            httpOnly: true,
-            path: '/',
-            ...cookieOptions,
-        });
-        response.clearCookie('refresh_token', {
-            httpOnly: true,
-            path: '/',
-            ...cookieOptions,
-        });
+        response.clearCookie('access_token', this.getCookieOptions());
+        response.clearCookie('refresh_token', this.getCookieOptions());
         return {
             success: true,
             message: AUTH_MESSAGES.success.logoutSuccessful,
@@ -115,7 +117,7 @@ export class AuthController {
             accessToken,
             refreshToken: newRefreshToken,
         } = await this.authService.refresh(refreshToken);
-        this.setAuthCookies(response, accessToken, newRefreshToken, request);
+        this.setAuthCookies(response, accessToken, newRefreshToken);
         return {
             success: true,
             message: AUTH_MESSAGES.success.tokenRefreshed,
@@ -259,93 +261,30 @@ export class AuthController {
             provider,
             request,
         );
-        response.clearCookie('oauth_state', {
-            httpOnly: true,
-            sameSite: 'lax',
-            secure: config.NODE_ENV === 'production',
-            path: '/',
-        });
-        this.setAuthCookies(
-            response,
-            result.accessToken,
-            result.refreshToken,
-            request,
-        );
-        return response.redirect(config.FRONTEND_URL);
+        response.clearCookie('oauth_state', this.getCookieOptions());
+        this.setAuthCookies(response, result.accessToken, result.refreshToken);
+        return response.redirect(`${config.FRONTEND_URL}/dashboard`);
     }
 
     private setAuthCookies(
         response: Response,
         accessToken: string,
         refreshToken: string,
-        request?: Request,
     ): void {
-        const cookieOptions = this.getAuthCookieOptions(request);
-        response.cookie('access_token', accessToken, {
-            httpOnly: true,
-            path: '/',
-            maxAge: this.parseDurationToMs(config.ACCESS_TOKEN_EXPIRES_IN),
-            ...cookieOptions,
-        });
-        response.cookie('refresh_token', refreshToken, {
-            httpOnly: true,
-            path: '/',
-            maxAge: this.parseDurationToMs(config.REFRESH_TOKEN_EXPIRES_IN),
-            ...cookieOptions,
-        });
-    }
-
-    private getAuthCookieOptions(
-        request?: Request,
-    ): Pick<CookieOptions, 'sameSite' | 'secure' | 'partitioned'> {
-        const frontendHost = this.getHost(config.FRONTEND_URL);
-        const backendHost = this.getRequestHost(request);
-        const isCrossSite =
-            Boolean(frontendHost) &&
-            Boolean(backendHost) &&
-            frontendHost !== backendHost;
-
-        if (isCrossSite) {
-            return {
-                sameSite: 'none',
-                secure: true,
-                partitioned: true,
-            };
-        }
-
-        return {
-            sameSite: 'lax',
-            secure: config.NODE_ENV === 'production',
-            partitioned: false,
-        };
-    }
-
-    private getHost(urlOrHost: string): string | null {
-        try {
-            return new URL(urlOrHost).host;
-        } catch {
-            return null;
-        }
-    }
-
-    private getRequestHost(request?: Request): string | null {
-        if (!request) {
-            return null;
-        }
-
-        const forwardedHost = request.headers['x-forwarded-host'];
-        if (typeof forwardedHost === 'string' && forwardedHost.length > 0) {
-            return forwardedHost.split(',')[0]?.trim() ?? null;
-        }
-
-        if (Array.isArray(forwardedHost) && forwardedHost.length > 0) {
-            return forwardedHost[0]?.split(',')[0]?.trim() ?? null;
-        }
-
-        const hostHeader = request.headers.host;
-        return typeof hostHeader === 'string' && hostHeader.length > 0
-            ? hostHeader
-            : null;
+        response.cookie(
+            'access_token',
+            accessToken,
+            this.getCookieOptions(
+                this.parseDurationToMs(config.ACCESS_TOKEN_EXPIRES_IN),
+            ),
+        );
+        response.cookie(
+            'refresh_token',
+            refreshToken,
+            this.getCookieOptions(
+                this.parseDurationToMs(config.REFRESH_TOKEN_EXPIRES_IN),
+            ),
+        );
     }
     private parseDurationToMs(duration: string): number {
         const normalized = duration.trim();
