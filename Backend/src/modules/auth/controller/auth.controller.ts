@@ -297,7 +297,7 @@ export class AuthController {
 
     private getAuthCookieOptions(
         request?: Request,
-    ): Pick<CookieOptions, 'sameSite' | 'secure'> {
+    ): Pick<CookieOptions, 'sameSite' | 'secure' | 'partitioned'> {
         const frontendHost = this.getHost(config.FRONTEND_URL);
         const backendHost = this.getRequestHost(request);
         const isCrossSite =
@@ -309,12 +309,14 @@ export class AuthController {
             return {
                 sameSite: 'none',
                 secure: true,
+                partitioned: true,
             };
         }
 
         return {
             sameSite: 'lax',
             secure: config.NODE_ENV === 'production',
+            partitioned: false,
         };
     }
 
