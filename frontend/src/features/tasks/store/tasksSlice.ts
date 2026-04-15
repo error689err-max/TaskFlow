@@ -7,6 +7,7 @@ import {
   fetchTasks,
   generateTaskDescription,
   updateTask,
+  sendProjectInvite,
 } from "./tasksThunks";
 
 interface TasksState {
@@ -18,7 +19,11 @@ interface TasksState {
   selectedTask: Task | null;
   loading: boolean;
   error: string | null;
+  inviteSuccess: string | null;
+  inviteLoading: boolean;
+  inviteError: string | null;
   aiLoading: boolean;
+  taskloading: boolean;
   generatedDescription: string;
   filters: TaskFilters;
 }
@@ -33,6 +38,10 @@ const initialState: TasksState = {
   loading: false,
   error: null,
   aiLoading: false,
+  taskloading: false,
+  inviteLoading: false,
+  inviteSuccess: "",
+  inviteError: "",
   generatedDescription: "",
   filters: {
     status: "ALL",
@@ -68,6 +77,12 @@ const tasksSlice = createSlice({
       state.error = null;
     },
 
+    clearInviteError(state) {
+      state.inviteError = null;
+    },
+    clearSuccessError(state) {
+      state.inviteSuccess = null;
+    },
     setTaskStatusOptimistic(
       state,
       action: PayloadAction<{ taskId: string; status: TaskStatus }>,
@@ -95,7 +110,7 @@ const tasksSlice = createSlice({
         if (action.meta.arg.cursor) {
           state.loadingMore = true;
         } else {
-          state.loading = true;
+          state.taskloading = true;
           state.tasks = [];
         }
         state.error = null;
@@ -103,7 +118,8 @@ const tasksSlice = createSlice({
       .addCase(fetchTasks.fulfilled, (state, action) => {
         const { items, nextCursor, hasNextPage } = action.payload;
 
-        if (action.meta.arg.cursor) {  // this is meta data by the redux thunk to know if we did the used the cursor or not 
+        if (action.meta.arg.cursor) {
+          // this is meta data by the redux thunk to know if we did the used the cursor or not
           state.tasks.push(...items); // append on paginate
         } else {
           state.tasks = items;
@@ -111,26 +127,26 @@ const tasksSlice = createSlice({
 
         state.nextCursor = nextCursor;
         state.hasNextPage = hasNextPage;
-        state.loading = false;
+        state.taskloading = false;
         state.loadingMore = false;
       })
       .addCase(fetchTasks.rejected, (state, action) => {
-        state.loading = false;
+        state.taskloading = false;
         state.loadingMore = false;
         state.error = (action.payload as string) || "Something went wrong";
       })
 
       // createTask
       .addCase(createTask.pending, (state) => {
-        state.loading = true;
+        state.taskloading = true;
         state.error = null;
       })
       .addCase(createTask.fulfilled, (state, action: PayloadAction<Task>) => {
-        state.loading = false;
+        state.taskloading = false;
         state.tasks.unshift(action.payload);
       })
       .addCase(createTask.rejected, (state, action) => {
-        state.loading = false;
+        state.taskloading = false;
         state.error = (action.payload as string) || "Something went wrong";
       })
 
@@ -200,6 +216,20 @@ const tasksSlice = createSlice({
       .addCase(fetchMembers.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Failed";
+      })
+      // invite member
+      .addCase(sendProjectInvite.pending, (state) => {
+        state.inviteLoading = true;
+        state.error = null;
+      })
+      .addCase(sendProjectInvite.fulfilled, (state) => {
+        state.inviteLoading = false;
+        state.inviteSuccess = "Invitation sent successfully";
+      })
+      .addCase(sendProjectInvite.rejected, (state, action) => {
+        state.inviteLoading = false;
+        state.error = action.payload ?? "Failed to send invite";
+        state.inviteError = "Error Sending Invite";
       });
   },
 });
@@ -211,6 +241,8 @@ export const {
   clearGeneratedDescription,
   clearTasksError,
   setTaskStatusOptimistic,
+  clearInviteError,
+  clearSuccessError,
   revertTaskStatus,
 } = tasksSlice.actions;
 

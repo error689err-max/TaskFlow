@@ -21,6 +21,10 @@ export interface TaskUser {
   user: ProjectMember;
 }
 
+interface Project {
+  title: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -28,6 +32,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   projectId: string;
+  project: Project;
   createdById: string;
   dueDate?: string | null;
   createdAt?: string;

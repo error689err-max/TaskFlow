@@ -86,6 +86,11 @@ export class TasksRepository {
                 createdBy: {
                     select: { id: true, name: true, email: true },
                 },
+                project: {
+                    select: {
+                        title: true,
+                    },
+                },
                 assignees: {
                     select: {
                         id: true,
@@ -215,10 +220,9 @@ Instructions:
 
             return description;
         } catch (error) {
-            console.log(error);
-            throw new InternalServerErrorException(
-                'Failed to generate task description',
-            );
+            throw new InternalServerErrorException({
+                message: 'Failed to generate task description',
+            });
         }
     }
 }

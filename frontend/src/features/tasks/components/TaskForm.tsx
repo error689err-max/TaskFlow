@@ -28,6 +28,11 @@ type AssigneeOption = {
   label: string;
 };
 
+type FormErrors = {
+  title?: string;
+  description?: string;
+};
+
 export default function TaskForm({
   initialData,
   projectId,
@@ -61,10 +66,15 @@ export default function TaskForm({
   const [assigneeIds, setAssigneeIds] = useState<string[]>(
     getTaskAssigneeIds(initialData),
   );
+  const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     if (generatedDescription) {
       setDescription(generatedDescription);
+      setErrors((prev) => ({
+        ...prev,
+        description: validateDescription(generatedDescription),
+      }));
     }
   }, [generatedDescription]);
 
@@ -75,6 +85,7 @@ export default function TaskForm({
     setPriority(initialData?.priority || "MEDIUM");
     setDueDate(initialData?.dueDate || "");
     setAssigneeIds(getTaskAssigneeIds(initialData));
+    setErrors({});
   }, [initialData]);
 
   const assigneeOptions = useMemo<AssigneeOption[]>(
@@ -92,16 +103,52 @@ export default function TaskForm({
     );
   }, [assigneeOptions, assigneeIds]);
 
+  const validateTitle = (value: string): string => {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) return "Title is required";
+    if (trimmedValue.length < 3) return "Title must be at least 3 characters";
+    if (trimmedValue.length > 100)
+      return "Title must not exceed 100 characters";
+
+    return "";
+  };
+
+  const validateDescription = (value: string): string => {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) return "";
+    if (trimmedValue.length < 10)
+      return "Description must be at least 10 characters";
+    if (trimmedValue.length > 1000)
+      return "Description must not exceed 1000 characters";
+
+    return "";
+  };
+
+  const validateForm = () => {
+    const newErrors: FormErrors = {
+      title: validateTitle(title),
+      description: validateDescription(description),
+    };
+
+    setErrors(newErrors);
+
+    return !newErrors.title && !newErrors.description;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) return;
 
     const cleanedAssigneeIds = assigneeIds.filter(
       (id): id is string => typeof id === "string" && id.trim() !== "",
     );
 
     onSubmit({
-      title,
-      description,
+      title: title.trim(),
+      description: description.trim(),
       status,
       priority,
       assigneeIds: cleanedAssigneeIds,
@@ -134,11 +181,25 @@ export default function TaskForm({
             </label>
             <input
               type="text"
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-100"
+              className={`w-full rounded-[var(--radius-md)] border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 ${
+                errors.title
+                  ? "border-red-500 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-100"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:ring-blue-100"
+              }`}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setTitle(value);
+                setErrors((prev) => ({
+                  ...prev,
+                  title: validateTitle(value),
+                }));
+              }}
               placeholder="Enter task title"
             />
+            {errors.title && (
+              <p className="mt-1 text-sm text-red-500">{errors.title}</p>
+            )}
           </div>
 
           <div>
@@ -146,17 +207,31 @@ export default function TaskForm({
               Description
             </label>
             <textarea
-              className="min-h-[120px] w-full resize-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-100"
+              className={`min-h-[120px] w-full resize-none rounded-[var(--radius-md)] border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-text-muted)] focus:ring-2 ${
+                errors.description
+                  ? "border-red-500 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-100"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:ring-blue-100"
+              }`}
               rows={4}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDescription(value);
+                setErrors((prev) => ({
+                  ...prev,
+                  description: validateDescription(value),
+                }));
+              }}
               placeholder="Enter task description"
             />
+            {errors.description && (
+              <p className="mt-1 text-sm text-red-500">{errors.description}</p>
+            )}
           </div>
 
           <GenerateDescriptionButton
             loading={aiLoading}
-            onClick={() => onGenerateDescription?.(title, projectId)}
+            onClick={() => onGenerateDescription?.(title.trim(), projectId)}
           />
 
           <div>

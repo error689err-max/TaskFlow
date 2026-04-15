@@ -22,31 +22,46 @@ function getActionMeta(action: ActivityActionType): ActionMeta {
     case "PROJECT_CREATED":
       return {
         icon: <FolderPlus size={size} />,
-        iconStyle: { background: "rgb(219 234 254)", color: "var(--color-primary)" },
+        iconStyle: {
+          background: "rgb(219 234 254)",
+          color: "var(--color-primary)",
+        },
         verb: "created the project",
       };
     case "MEMBER_INVITED":
       return {
         icon: <UserPlus size={size} />,
-        iconStyle: { background: "rgb(220 252 231)", color: "var(--color-success)" },
-        verb: "invited", 
+        iconStyle: {
+          background: "rgb(220 252 231)",
+          color: "var(--color-success)",
+        },
+        verb: "invited",
       };
     case "TASK_CREATED":
       return {
         icon: <CheckSquare size={size} />,
-        iconStyle: { background: "rgb(224 242 254)", color: "var(--color-secondary)" },
+        iconStyle: {
+          background: "rgb(224 242 254)",
+          color: "var(--color-secondary)",
+        },
         verb: "created task",
       };
     case "TASK_STATUS_CHANGED":
       return {
         icon: <RefreshCw size={size} />,
-        iconStyle: { background: "rgb(254 249 195)", color: "var(--color-warning)" },
+        iconStyle: {
+          background: "rgb(254 249 195)",
+          color: "var(--color-warning)",
+        },
         verb: "changed task status",
       };
     case "TASK_DELETED":
       return {
         icon: <Trash2 size={size} />,
-        iconStyle: { background: "rgb(254 226 226)", color: "var(--color-danger)" },
+        iconStyle: {
+          background: "rgb(254 226 226)",
+          color: "var(--color-danger)",
+        },
         verb: "deleted task",
       };
   }
@@ -54,16 +69,24 @@ function getActionMeta(action: ActivityActionType): ActionMeta {
 
 function StatusBadge({ label }: { label: string }) {
   const styleMap: Record<string, React.CSSProperties> = {
-    "To Do":       { background: "var(--color-muted)",   color: "var(--color-text-secondary)" },
-    "In Progress": { background: "rgb(219 234 254)",     color: "var(--color-primary)" },
-    "Done":        { background: "rgb(220 252 231)",     color: "var(--color-success)" },
-    "Cancelled":   { background: "rgb(254 226 226)",     color: "var(--color-danger)" },
+    TODO: {
+      background: "var(--color-muted)",
+      color: "var(--color-text-secondary)",
+    },
+    IN_PROGRESS: {
+      background: "rgb(219 234 254)",
+      color: "var(--color-primary)",
+    },
+    DONE: { background: "rgb(220 252 231)", color: "var(--color-success)" },
   };
 
   return (
     <span
       style={{
-        ...(styleMap[label] ?? { background: "var(--color-muted)", color: "var(--color-text-secondary)" }),
+        ...(styleMap[label] ?? {
+          background: "var(--color-muted)",
+          color: "var(--color-text-secondary)",
+        }),
         display: "inline-flex",
         alignItems: "center",
         padding: "1px 7px",
@@ -121,19 +144,28 @@ const ActivityLogItem = ({ log }: ActivityLogItemProps) => {
           <span style={{ color: "var(--color-text-secondary)" }}>{verb}</span>
 
           {log.action === "PROJECT_CREATED" && log.project && (
-            <span className="font-medium" style={{ color: "var(--color-primary)" }}>
+            <span
+              className="font-medium"
+              style={{ color: "var(--color-primary)" }}
+            >
               {log.project.title}
             </span>
           )}
 
           {log.action === "MEMBER_INVITED" && log.details && (
-            <span className="font-medium" style={{ color: "var(--color-primary)" }}>
+            <span
+              className="font-medium"
+              style={{ color: "var(--color-primary)" }}
+            >
               {log.details.invitedUserName}
             </span>
           )}
 
           {log.action === "TASK_CREATED" && log.details && (
-            <span className="font-medium" style={{ color: "var(--color-primary)" }}>
+            <span
+              className="font-medium"
+              style={{ color: "var(--color-primary)" }}
+            >
               {log.details.taskTitle}
             </span>
           )}
@@ -141,19 +173,22 @@ const ActivityLogItem = ({ log }: ActivityLogItemProps) => {
           {log.action === "TASK_STATUS_CHANGED" && log.details && (
             <span className="inline-flex items-center gap-1 flex-wrap">
               <span style={{ color: "var(--color-text-secondary)" }}>from</span>
-              <StatusBadge label={log.details.fromStatus} />
+              <StatusBadge label={log.details.from} />
               <span style={{ color: "var(--color-text-secondary)" }}>to</span>
-              <StatusBadge label={log.details.toStatus} />
+              <StatusBadge label={log.details.to} />
             </span>
           )}
 
           {log.action === "TASK_DELETED" && log.details && (
-            <span className="font-medium" style={{ color: "var(--color-danger)" }}>
+            <span
+              className="font-medium"
+              style={{ color: "var(--color-danger)" }}
+            >
               {log.details.taskTitle}
             </span>
           )}
 
-          {log.project &&  log.action!="PROJECT_CREATED"  && (
+          {log.project && log.action != "PROJECT_CREATED" && (
             <>
               <span style={{ color: "var(--color-text-secondary)" }}>in</span>
               <span
@@ -166,7 +201,10 @@ const ActivityLogItem = ({ log }: ActivityLogItemProps) => {
           )}
         </p>
 
-        <p className="mt-0.5 text-xs" style={{ color: "var(--color-text-muted)" }}>
+        <p
+          className="mt-0.5 text-xs"
+          style={{ color: "var(--color-text-muted)" }}
+        >
           {formatDate(log.createdAt)}
         </p>
       </div>

@@ -3,22 +3,23 @@ import { AppLayout } from "../shared/components/layout/AppLayout";
 import ProtectedRoute from "../shared/components/guards/ProtectedRoute";
 import PublicOnlyRoute from "../shared/components/guards/PublicOnlyRoute";
 import AuthPage from "../features/auth/pages/AuthPage";
-import HomePage from "../features/home/pages/HomePage";
 import { lazy, Suspense } from "react";
 import NotFoundPage from "../shared/pages/NotFound";
 import Loader from "../shared/components/Loader";
 
-const DashboardPage = lazy(()=>import('../features/dashboard/pages/DashboardPage'));
-const ProjectsPage = lazy(()=>import('../features/projects/pages/ProjectsPage'));
-const TasksPage = lazy(()=>import('../features/tasks/pages/TasksPage'));
-const ActivityPage = lazy(()=>import('../features/activity/pages/ActivityPage'));
-const ProfilePage = lazy(()=>import('../features/auth/pages/ProfilePage'));
+const DashboardPage = lazy(
+  () => import("../features/dashboard/pages/DashboardPage"),
+);
+const ProjectsPage = lazy(
+  () => import("../features/projects/pages/ProjectsPage"),
+);
+const TasksPage = lazy(() => import("../features/tasks/pages/TasksPage"));
+const ActivityPage = lazy(
+  () => import("../features/activity/pages/ActivityPage"),
+);
+const ProfilePage = lazy(() => import("../features/auth/pages/ProfilePage"));
+import HomePage from "../features/home/pages/HomePage";
 
-import ProfilePage from "../features/auth/pages/ProfilePage";
-import { DashboardPage, HomePage } from "./placeholderPages";
-import TasksPage from "../features/tasks/pages/TasksPage";
-import ProjectsPage from "../features/projects/pages/ProjectsPage";
-import ActivityPage from "../features/activity/pages/ActivityPage";
 import AcceptInvitePage from "../features/invite/pages/AcceptInvitePage";
 
 export const router = createBrowserRouter([
@@ -45,15 +46,15 @@ export const router = createBrowserRouter([
       {
         path: "dashboard",
         element: (
-          <Suspense fallback={<Loader/>}>
+          <Suspense fallback={<Loader />}>
             <DashboardPage />
           </Suspense>
         ),
       },
       {
         path: "projects",
-        element:(
-          <Suspense fallback={<Loader/>}>
+        element: (
+          <Suspense fallback={<Loader />}>
             <ProjectsPage />
           </Suspense>
         ),
@@ -61,7 +62,7 @@ export const router = createBrowserRouter([
       {
         path: "project/:id",
         element: (
-          <Suspense fallback={<Loader/>}>
+          <Suspense fallback={<Loader />}>
             <TasksPage />
           </Suspense>
         ),
@@ -69,7 +70,7 @@ export const router = createBrowserRouter([
       {
         path: "activity",
         element: (
-          <Suspense fallback={<Loader/>}>
+          <Suspense fallback={<Loader />}>
             <ActivityPage />
           </Suspense>
         ),
@@ -77,7 +78,7 @@ export const router = createBrowserRouter([
       {
         path: "profile",
         element: (
-          <Suspense fallback={<Loader/>}>
+          <Suspense fallback={<Loader />}>
             <ProfilePage />
           </Suspense>
         ),
@@ -88,14 +89,12 @@ export const router = createBrowserRouter([
       },
       {
         path: "/accept/invite/:projectId/:emailId",
-        element: <AcceptInvitePage />
-      }
+        element: <AcceptInvitePage />,
+      },
     ],
   },
   {
-    path:'*',
-    element:(
-      <NotFoundPage/>
-    )
-  }
+    path: "*",
+    element: <NotFoundPage />,
+  },
 ]);

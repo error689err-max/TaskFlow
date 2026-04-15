@@ -1,5 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { tasksApi } from "../api/tasks.api";
+import { inviteApi } from "../api/invite.api";
 import type {
   CreateTaskPayload,
   GenerateDescriptionPayload,
@@ -92,6 +93,20 @@ export const generateTaskDescription = createAsyncThunk<
   } catch (error: any) {
     return thunkAPI.rejectWithValue(
       error?.response?.data?.message || "Failed to generate description",
+    );
+  }
+});
+
+export const sendProjectInvite = createAsyncThunk<
+  { message: string },
+  { email: string; projectId: string },
+  { rejectValue: string }
+>("invite/sendProjectInvite", async ({ email, projectId }, thunkAPI) => {
+  try {
+    return await inviteApi.sendInvite(email, projectId);
+  } catch (error: any) {
+    return thunkAPI.rejectWithValue(
+      error?.response?.data?.message || "Failed to send invite",
     );
   }
 });

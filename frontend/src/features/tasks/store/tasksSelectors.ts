@@ -17,7 +17,7 @@ export const selectAiLoading = (state: RootState) => state.tasks.aiLoading;
 export const selectGeneratedDescription = (state: RootState) =>
   state.tasks.generatedDescription;
 export const selectProjectMembers = (state: RootState) => state.tasks.members;
-
+export const selectTaskLoading = (state: RootState) => state.tasks.taskloading;
 export const selectFilteredTasks = (state: RootState) => {
   const { tasks, filters } = state.tasks;
 
@@ -37,3 +37,8 @@ export const selectFilteredTasks = (state: RootState) => {
     return matchesStatus && matchesPriority && matchesAssignee;
   });
 };
+
+export const selectInviteSuccess = (state: RootState) =>
+  state.tasks.inviteSuccess;
+
+export const selectInviteError = (state: RootState) => state.tasks.inviteError;

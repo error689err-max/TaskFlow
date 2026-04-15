@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { LayoutList, Kanban, Plus } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../../store/hooks";
@@ -8,6 +8,10 @@ import PrimaryButton from "../../../shared/components/buttons/PrimaryButton";
 import KanbanBoard from "../components/KanbanBoard";
 import TaskList from "../components/TaskList";
 import Loader from "../../../shared/components/Loader";
+import ProjectMembersBar from "../components/Projectmembersbar";
+import { Filter } from "lucide-react";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { SuccessBanner } from "../components/SuccessBanner";
 
 import type {
   Task,
@@ -20,12 +24,15 @@ import {
   selectFilteredTasks,
   selectGeneratedDescription,
   selectProjectMembers,
-  selectTaskFilters,  
+  selectTaskFilters,
   selectTasksError,
   selectTasksLoading,
   selectNextCursor,
   selectHasNextPage,
   selectLoadingMore,
+  selectTaskLoading,
+  selectInviteError,
+  selectInviteSuccess,
 } from "../store/tasksSelectors";
 import {
   clearGeneratedDescription,
@@ -35,6 +42,8 @@ import {
   setTaskStatusOptimistic,
   revertTaskStatus,
   setStatusFilter,
+  clearInviteError,
+  clearSuccessError,
 } from "../store/tasksSlice";
 import {
   createTask,
@@ -43,6 +52,7 @@ import {
   fetchTasks,
   generateTaskDescription,
   updateTask,
+  sendProjectInvite,
 } from "../store/tasksThunks";
 
 type TaskFormData = {
@@ -57,21 +67,29 @@ type TaskFormData = {
 export default function TasksPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
-
   const tasks = useAppSelector(selectFilteredTasks);
   const members = useAppSelector(selectProjectMembers);
   const loading = useAppSelector(selectTasksLoading);
   const error = useAppSelector(selectTasksError);
   const filters = useAppSelector(selectTaskFilters);
   const aiLoading = useAppSelector(selectAiLoading);
+  const taskloading = useAppSelector(selectTaskLoading);
   const generatedDescription = useAppSelector(selectGeneratedDescription);
   const nextCursor = useAppSelector(selectNextCursor);
   const hasNextPage = useAppSelector(selectHasNextPage);
   const loadingMore = useAppSelector(selectLoadingMore);
-
+  const inviteError = useAppSelector(selectInviteError);
+  const inviteSuccess = useAppSelector(selectInviteSuccess);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [view, setView] = useState<"list" | "kanban">("list");
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  const activeFiltersCount = [
+    filters.assigneeId !== "ALL",
+    filters.status !== "ALL",
+    filters.priority !== "ALL",
+  ].filter(Boolean).length;
 
   // Initial fetch
   useEffect(() => {
@@ -89,10 +107,24 @@ export default function TasksPage() {
 
   // Auto-clear error after 6s
   useEffect(() => {
-    if (!error) return;
-    const t = window.setTimeout(() => dispatch(clearTasksError()), 6000);
-    return () => window.clearTimeout(t);
-  }, [error, dispatch]);
+    const timers: number[] = [];
+
+    if (error) {
+      timers.push(window.setTimeout(() => dispatch(clearTasksError()), 6000));
+    }
+
+    if (inviteError) {
+      timers.push(window.setTimeout(() => dispatch(clearInviteError()), 6000));
+    }
+
+    if (inviteSuccess) {
+      timers.push(window.setTimeout(() => dispatch(clearSuccessError()), 6000));
+    }
+
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+  }, [error, inviteError, inviteSuccess, dispatch]);
 
   const handleLoadMore = () => {
     if (!projectId || !hasNextPage || loadingMore) return;
@@ -187,6 +219,18 @@ export default function TasksPage() {
       });
   };
 
+  const handleInvite = async (email: string) => {
+    if (!projectId) return;
+
+    const result = await dispatch(sendProjectInvite({ email, projectId }));
+
+    if (sendProjectInvite.fulfilled.match(result)) {
+      console.log("Invite sent:", result.payload.message);
+    } else {
+      console.error("Invite failed:", result.payload);
+    }
+  };
+
   if (!projectId) {
     return (
       <div className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
@@ -201,7 +245,7 @@ export default function TasksPage() {
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
-            Tasks
+            {tasks[0]?.project?.title}
           </h1>
 
           <div className="flex items-center gap-3">
@@ -239,27 +283,53 @@ export default function TasksPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <TaskFilters
-          filters={filters}
-          users={members}
-          onAssigneeChange={handleAssigneeChange}
-          onStatusChange={handleStatusChange}
-          onPriorityChange={handlePriorityChange}
+        {/* Members bar avatars + invite */}
+        <ProjectMembersBar
+          members={members}
+          loading={loading}
+          onInvite={handleInvite}
         />
 
-        {/* Error banner */}
-        {error ? (
-          <div
-            className="rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-            role="alert"
-          >
-            {error}
+        {/* Filter Button */}
+        <div className="flex items-center justify-between">
+          <div className="relative">
+            <button
+              onClick={() => setIsFilterModalOpen(true)}
+              className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm"
+            >
+              <Filter size={16} className="text-blue-700" />
+              Filters
+            </button>
+
+            {/* Badge */}
+            {activeFiltersCount > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-xs text-white">
+                {activeFiltersCount}
+              </span>
+            )}
           </div>
-        ) : null}
+        </div>
+
+        {/* Filter Modal */}
+        {isFilterModalOpen && (
+          <TaskFilters
+            filters={filters}
+            users={members}
+            onAssigneeChange={handleAssigneeChange}
+            onStatusChange={handleStatusChange}
+            onPriorityChange={handlePriorityChange}
+            onClose={() => setIsFilterModalOpen(false)}
+          />
+        )}
+
+        {/* Error banner */}
+        {error ? <ErrorBanner error={error} /> : null}
+
+        {inviteError ? <ErrorBanner error={inviteError} /> : null}
+        {inviteSuccess ? <SuccessBanner success={inviteSuccess} /> : null}
 
         {/* Task list / kanban */}
-        {loading ? (
+        {taskloading ? (
           <div className="flex items-center justify-center p-10 text-xl text-[var(--color-text-secondary)]">
             <Loader />
           </div>
